@@ -7,26 +7,6 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Section phi.
-Variables w n m r : nat.
-Variable a : w.-tuple [finFieldType of 'F_2].
-
-Local Open Scope ring_scope.
-Definition phi' :=
-  ('X ^+ n + 'X ^+ m) ^+ (w - r) * ('X ^+ n.-1 + 'X ^+ m.-1) ^+ r
-  + \sum_(i < r.-1) a`_i *: ('X ^+ n + 'X ^+ m) ^+ (w - r)
-                     * ('X ^+ n.-1 + 'X ^+ m.-1) ^+ (r.-1 - i)
-  + \sum_(i < w - r.-1)
-     a`_(r.-1 + i) *: ('X ^+ n + 'X ^+ m) ^+ (w - r - i).
-End phi.
-
-Lemma a32 : size ([:: 1; 0; 0; 1; 1; 0; 0; 1; 0; 0; 0; 0; 1; 0; 0; 0; 1; 0; 1;
-                     1; 0; 0; 0; 0; 1; 1; 0; 1; 1; 1; 1; 1]: seq 'F_2)%R == 32.
-Proof. by []. Qed.
-Definition phi := phi' 624 397 31 (Tuple a32).
-
-Axiom pm' : prime (2 ^ 19937 - 1).
-
 Lemma poly_exp_leq (t : poly_ringType [finFieldType of 'F_2]) p :
   1 < size t -> size (t ^+ p)%R < size (t ^+ p.+1)%R.
 Proof.
@@ -55,6 +35,121 @@ Proof.
   apply/ltn_trans/poly_exp_leq/t1/IHq => //.
   by rewrite ltnNge leq_eqVlt eq_sym pq0 negb_or /= -ltnNge.
 Qed.
+
+Section phi.
+Variables w n m r : nat.
+Variable a : w.-tuple [finFieldType of 'F_2].
+
+Local Open Scope ring_scope.
+Definition phi' :=
+  ('X ^+ n + 'X ^+ m) ^+ (w - r) * ('X ^+ n.-1 + 'X ^+ m.-1) ^+ r
+  + \sum_(i < r.-1) a`_i *: ('X ^+ n + 'X ^+ m) ^+ (w - r)
+                     * ('X ^+ n.-1 + 'X ^+ m.-1) ^+ (r.-1 - i)
+  + \sum_(i < w - r.-1)
+     a`_(r.-1 + i) *: ('X ^+ n + 'X ^+ m) ^+ (w - r - i).
+
+Hypothesis pm' : prime (2 ^ (n * w - r) - 1).
+Hypothesis nm : (n > m)%nat.
+Hypothesis m0 : (m > 0)%nat.
+Hypothesis wr : (w >= r)%nat.
+(* Hypothesis r0 : (r > 0)%nat. *)
+
+Lemma size_phi : (size phi').-1 = (n * w - r)%N.
+Proof.
+  rewrite /phi' /=.
+  have np: (0 < n)%nat by rewrite (leq_trans _ nm).
+  have?: (m.-1.+1 < n.-1.+1)%nat.
+   case: m nm m0 => //= q + _.
+   by case: n.
+  have?: forall p, (p * w >= p * r)%nat.
+   elim => // p IH.
+   by rewrite !mulSn (leq_add wr IH).
+  have H : (('X^n.-1 + 'X^m.-1 : poly_ringType [finFieldType of 'F_2])%R != 0%R).
+   by rewrite -size_poly_eq0 size_addl ?size_polyXn.
+  have x : (('X^n + 'X^m: poly_ringType [finFieldType of 'F_2])%R != 0%R).
+   by rewrite -size_poly_eq0 size_addl ?size_polyXn.
+  have H1: forall r, (('X^n + 'X^m : poly_ringType [finFieldType of 'F_2]) ^+ (w - r))%R != 0%R.
+   move=> r'.
+   elim: (w - r')%nat => [|? IH].
+    by rewrite -size_poly_eq0 GRing.expr0 size_polyC.
+    by rewrite GRing.exprS GRing.mulf_eq0 negb_or x IH.
+  have ?: (('X^n.-1 + 'X^m.-1 : poly_ringType [finFieldType of 'F_2]) ^+ r)%R != 0%R.
+   elim: r => [|? IH].
+    by rewrite -size_poly_eq0 GRing.expr0 size_polyC.
+    by rewrite GRing.exprS GRing.mulf_eq0 negb_or H IH.
+  rewrite !size_addl ?size_polyXn ?size_polyC //.
+  - rewrite size_mul // ?size_addl ?size_polyXn //.
+    set T' := (_ + _)%R.
+    rewrite -(@prednK (size (T' ^+ (w - r))%R)); last by rewrite lt0n size_poly_eq0 /T' H1.
+    rewrite /T' size_exp size_addl ?size_polyXn; last by [].
+    rewrite addnC addnS -subn1 addnC -addnBA ?subn1 ?lt0n ?size_poly_eq0 //
+            size_exp size_addl ?size_polyXn ?size_polyC ?lt0n ?size_poly_eq0 //.
+    case: n np => // ? _.
+    by rewrite /= !mulSn mulnBr // -addnA subnK // [in RHS]addnC addnC addnBA.
+  - case: r => [|[|?]].
+    + by rewrite /= big_ord0 size_polyC eqxx lt0n size_poly_eq0 GRing.expr0 GRing.mulr1.
+    + by rewrite /= big_ord0 size_polyC eqxx lt0n size_poly_eq0 GRing.expr1 GRing.mulf_eq0 negb_or H H1.
+    + rewrite big_ord_recl size_addl. GRing.scale1r.
+       first by rewrite size_mul // [X in _ < X]size_mul // -subn1 -[X in _ < X]subn1
+             ltn_sub2r // ?(ltn_add2l, poly_exp_leq') // ?ltn_addr ?size_addl ?size_polyXn).
+     GRing.mulr1.
+    
+  case: r r0 => // ? _.
+  rewrite /=.
+  (rewrite big_ord_recl size_addl GRing.scale1r;
+    first by rewrite size_mul // [X in _ < X]size_mul // -subn1 -[X in _ < X]subn1
+             ltn_sub2r // ?(ltn_add2l, poly_exp_leq') // ?ltn_addr ?size_addl ?size_polyXn).
+  
+  rewrite big_ord_recl /= GRing.scale0r GRing.mul0r GRing.add0r.
+    rewrite !size_addl. ?size_polyXn ?size_polyC //.
+  repeat rewrite big_ord_recl /= GRing.scale0r GRing.mul0r GRing.add0r.
+  have ->: (32 - 31 = 1)%N by []. have ->: (32 - 30 = 2)%N by [].
+  rewrite !GRing.expr1. set T := (\sum_(i < 2) _ *: _ ^+ _)%R.
+  have ->: T = ('X^624 + 'X^397 + 1)%R.
+   by rewrite /T big_ord_recr big_ord1 /= !GRing.scale1r
+              subnn subn0 GRing.expr0 GRing.expr1.
+  have H : (('X^623 + 'X^396 : poly_ringType [finFieldType of 'F_2])%R != 0%R).
+   by rewrite -size_poly_eq0 size_addl ?size_polyXn.
+  have x : (('X^624 + 'X^397 : poly_ringType [finFieldType of 'F_2])%R != 0%R).
+   by rewrite -size_poly_eq0 size_addl ?size_polyXn.
+  have H1: forall n, (('X^623 + 'X^396 : poly_ringType [finFieldType of 'F_2]) ^+ n)%R != 0%R.
+   elim => [|n IHn].
+    by rewrite GRing.expr0 GRing.oner_neq0.
+   by rewrite GRing.exprS GRing.mulf_eq0 negb_or H /=.
+  rewrite !size_addl ?size_polyXn ?size_polyC //.
+  rewrite size_mul // size_addl ?size_polyXn //.
+  set T' := (_ + _)%R.
+  rewrite -(@prednK (size (T' ^+ 31)%R)); last by rewrite lt0n size_poly_eq0 /T' H1.
+  rewrite /T' size_exp size_addl ?size_polyXn; last by [].
+  by native_compute.
+  repeat (
+  repeat rewrite big_ord_recl /= GRing.scale0r GRing.mul0r GRing.add0r;
+  repeat (rewrite big_ord_recl size_addl GRing.scale1r;
+    first by rewrite size_mul // [X in _ < X]size_mul // -subn1 -[X in _ < X]subn1
+             ltn_sub2r // ?(ltn_add2l, poly_exp_leq') // ?ltn_addr ?size_addl ?size_polyXn)).
+  by rewrite big_ord0 size_polyC eqxx lt0n size_poly_eq0 GRing.mulf_eq0 negb_or H1 x.
+  rewrite size_mul // size_addl ?size_polyXn //.
+  set T' := (_ + _)%R.
+  rewrite -(@prednK (size (T' ^+ 31)%R)); last by rewrite lt0n size_poly_eq0 /T' H1.
+  by rewrite /T' size_exp size_addl ?size_polyXn.
+  repeat (
+  repeat rewrite big_ord_recl /= GRing.scale0r GRing.mul0r GRing.add0r;
+  repeat (rewrite big_ord_recl size_addl GRing.scale1r;
+    first by rewrite size_mul // [X in _ < X]size_mul // -subn1 -[X in _ < X]subn1
+             ltn_sub2r // ?(ltn_add2l, poly_exp_leq') // ?ltn_addr ?size_addl ?size_polyXn)).
+  by rewrite big_ord0 size_polyC eqxx lt0n size_poly_eq0 GRing.mulf_eq0 negb_or H1 x.
+Qed.
+
+Lemma pm : prime (2 ^ (size phi).-1 - 1).
+Proof. by rewrite size_phi pm'. Qed.
+End phi.
+
+Lemma a32 : size ([:: 1; 0; 0; 1; 1; 0; 0; 1; 0; 0; 0; 0; 1; 0; 0; 0; 1; 0; 1;
+                     1; 0; 0; 0; 0; 1; 1; 0; 1; 1; 1; 1; 1]: seq 'F_2)%R == 32.
+Proof. by []. Qed.
+Definition phi := phi' 624 397 31 (Tuple a32).
+
+Axiom pm' : prime (2 ^ 19937 - 1).
 
 Lemma size_phi : (size phi).-1 = 19937.
 Proof.
