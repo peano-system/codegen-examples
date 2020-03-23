@@ -192,6 +192,13 @@ Proof.
              modp_add modp_opp subr_eq0 eq_sym => /eqP.
 Qed.
 
+Lemma reprE a : rmodp (generic_quotient.repr (\pi_QphiI a)) phi = rmodp a phi.
+Proof.
+  case: piP => b /eqP.
+  by rewrite -Quotient.idealrBE unfold_in -!Pdiv.IdomainMonic.modpE //
+             modp_add modp_opp subr_eq0 eq_sym => /eqP.
+Qed.
+
 Local Definition scale a v := rVQphiI (scalemx a (QphiI_rV v)).
 Local Fact scale1x A : scale 1 A = A.
 Proof. by rewrite /scale scale1mx QphiI_rV_K. Qed.
@@ -243,6 +250,11 @@ Proof. by rewrite -rmorphM. Qed.
 Lemma piD p q : \pi_QphiI (p + q) = (\pi p : QphiI) + \pi q.
 Proof.
 by rewrite (rmorphD (pi_rmorphism (Quotient.rquot_ringQuotType keyd_phiI))).
+Qed.
+
+Lemma piXn p n : \pi_QphiI (p ^+ n) = (\pi p : QphiI) ^+n.
+Proof.
+by rewrite (rmorphX (pi_rmorphism (Quotient.rquot_ringQuotType keyd_phiI))).
 Qed.
 
 Lemma piB p q : \pi_QphiI (p - q) = (\pi p : QphiI) - (\pi q : QphiI).
@@ -822,7 +834,7 @@ Definition F :
   [lmodType 'F_2 of QphiI phi_gt1] -> [lmodType 'F_2 of QphiI phi_gt1]
   := Frobenius_aut char2_phi.
 
-Lemma linearF : linear F.
+Lemma linear_F : linear F.
 Proof.
 move=> a x y.
 case: a => [][|[]//] i; set T := Ordinal i.
@@ -832,7 +844,7 @@ have->: T = 1%R by apply/val_inj.
 by rewrite !GRing.scale1r /F GRing.Frobenius_autD_comm // /GRing.comm GRing.mulrC.
 Qed.
 
-Canonical linearType_F := Eval hnf in Linear linearF.
+Canonical linearType_F := Eval hnf in Linear linear_F.
 
 Lemma expXpE p x : iter p F x = (x ^+ (2 ^ p))%R.
 Proof.
@@ -846,22 +858,18 @@ Qed.
 Lemma expandF q :
   reflect (iter q F =1 id) ('X^(2 ^ q) %% phi == 'X %% phi)%R.
 Proof.
-pose rmorphX :=
-    (rmorphX (pi_rmorphism (Quotient.rquot_ringQuotType (keyd_phiI phi)))).
-rewrite exprnP XnE rmorphX.
+rewrite exprnP XnE piXn.
 apply/(iffP idP) => [/eqP H0 x|/(_ (\pi 'X))].
 * rewrite (coord_basis (QphiIX_full _) (memvf x)).
   rewrite linear_sum; apply/eq_big => // i _.
   set e0 := QphiIX _.
-  by rewrite linearZ_LR /= expXpE !QphiIXE rmorphX -exprM mulnC exprM H0.
+  by rewrite linearZ_LR /= expXpE !QphiIXE piXn -exprM mulnC exprM H0.
 * by rewrite expXpE => ->.
 Qed.
 
 Lemma cycleF_dvdP p :
   reflect (iter p F =1 id) (2 ^ m - 1 %| 2 ^ p - 1)%nat.
 Proof.
-pose rmorphX :=
-  (rmorphX (pi_rmorphism (Quotient.rquot_ringQuotType (keyd_phiI phi)))).
 case/andP: irreducibleP_inverse => _ H0.
 apply/(iffP idP).
 * case/dvdnP => q H1.
@@ -871,10 +879,10 @@ apply/(iffP idP).
    elim: p {H1} => // n IH.
    apply/(leq_trans IH).
    by rewrite -[(2 ^ n)%nat]mul1n expnS leq_mul2r orbT.
-  by rewrite -subn1 H1 mulnC -exprnP exprM rmorphX !subn1 /= (eqP H0) pi1 expr1n.
+  by rewrite -subn1 H1 mulnC -exprnP exprM piXn !subn1 /= (eqP H0) pi1 expr1n.
 * move/(_ (\pi 'X)).
   rewrite XnE in H0.
-  rewrite expXpE -rmorphX /= -(eqP H0) -!val_piX_expE => /val_inj/eqP.
+  rewrite expXpE -piXn /= -(eqP H0) -!val_piX_expE => /val_inj/eqP.
   rewrite cyclic.eq_expg_mod_order piX_order.
   have H2: (2 ^ (size phi).-1 = ((2 ^ (size phi).-1) - 1) + 1)%nat
    by rewrite addn1 subn1 prednK.
@@ -896,10 +904,8 @@ Lemma irreducibleP :
 reflect (irreducible_poly phi)
 (('X ^ 2 %% phi != 'X %% phi) && ('X ^ (2 ^ m)%N %% phi == 'X %% phi))%R.
 Proof.
-pose rmorphX :=
-  (rmorphX (pi_rmorphism (Quotient.rquot_ringQuotType (keyd_phiI phi)))).
 apply/(iffP idP); last by apply irreducibleP_inverse.
-case/andP; rewrite !XnE -!exprnP !rmorphX.
+case/andP; rewrite !XnE -!exprnP !piXn.
 by apply irreducibleP_direct.
 Qed.
 
@@ -917,8 +923,6 @@ Lemma irreducibleP1 :
   reflect (irreducible_poly phi)
   [exists x, (H x != x) && (iter (size phi).-1 H x == x)%R].
 Proof.
-pose rmorphX :=
-  (rmorphX (pi_rmorphism (Quotient.rquot_ringQuotType (keyd_phiI phi)))).
 apply/(iffP idP).
 * case/existsP => x /andP [].
   rewrite iterHE /H /= => H1' H2'.
@@ -936,8 +940,8 @@ apply/(iffP idP).
   apply/andP; split.
    rewrite /H /= QphiI_rV_K /F Frobenius_autE.
    move: H1; apply/contra => /eqP/(can_inj (@QphiI_rV_K _ _))/eqP.
-   by rewrite rmorphX.
-  rewrite -!exprnP !rmorphX -!expXpE in H2.
+   by rewrite piXn.
+  rewrite -!exprnP !piXn -!expXpE in H2.
   by rewrite iterHE /= QphiI_rV_K (eqP H2).
 Qed.
 
