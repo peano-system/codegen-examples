@@ -745,12 +745,85 @@ Definition H x :=
   castmx (erefl, size_phi)
   (irreducible.H pm' (castmx (erefl, esym size_phi) x)).
 
+Lemma poly_sum (R : ringType) s (E : nat -> R) :
+\poly_(k < s) E k = \sum_(k < s) (E k)%:P * ('X ^+ k).
+Proof.
+elim: s.
+ apply/eqP.
+ by rewrite big_ord0 -size_poly_eq0 -leqn0 size_poly.
+move=> s IHs.
+apply/polyP => k.
+rewrite big_ord_recr /= -IHs coefD !coef_poly ltnS coefMXn coefC subn_eq0
+        leq_eqVlt orbC.
+case ks: (k < s)%nat; first by rewrite GRing.addr0.
+rewrite GRing.add0r; case: ifP => kse //.
+by move/eqP: kse => ->.
+Qed.
+
+Lemma char2_poly : 2 \in [char {poly 'F_2}].
+Proof. by apply (GRing.rmorph_char (polyC_rmorphism [ringType of 'F_2])). Qed.
+
+Lemma Frobenius_aut_poly s (E : nat -> 'F_2) :
+  Frobenius_aut char2_poly (\poly_(k < s) E k) =
+  \sum_(k < s) (Frobenius_aut char2_poly ((E k)%:P * ('X ^+ k))).
+Proof.
+  elim: s => [|s IHs].
+   by rewrite /= !poly_sum !big_ord0 GRing.rmorph0.
+  rewrite poly_sum big_ord_recr /= -poly_sum.
+  rewrite GRing.Frobenius_autD_comm ?IHs ?poly_sum ?big_ord_recr //.
+  by rewrite /GRing.comm GRing.mulrC.
+Qed.
+
+Lemma modp_sum s (E : 'I_s -> {poly 'F_2}) (q : {poly 'F_2}) :
+  (\sum_(k < s) E k) %% q = \sum_(k < s) (E k %% q).
+Proof.
+  elim: s E => [E |s IHs E].
+   by rewrite !big_ord0 mod0p.
+  by rewrite !big_ord_recr /= modp_add IHs.
+Qed.
+
 Lemma HE : H \o Phi =1 decimate \o Phi_long.
 Proof.
   move=> x.
   apply/rowP => j.
   rewrite !(mxE, castmxE) /irreducible.F GRing.Frobenius_autE /=.
-  rewrite -irreducible.piXn irreducible.reprE -GRing.Frobenius_autE
-          ?(GRing.rmorph_char (polyC_rmorphism [ringType of 'F_2])) //.
-  move=> ?.
+  rewrite -irreducible.piXn irreducible.reprE -(GRing.Frobenius_autE char2_poly).
+  rewrite /= Frobenius_aut_poly -!Pdiv.IdomainMonic.modpE.
+  set T := \sum__ _.
+  set E := (fun k => Frobenius_aut char2_poly ((Phi x 0 k)%:P * 'X^k)).
+  have->: T = (\sum_(k < p) E k).
+   apply/eq_big_cond.
+    by rewrite size_phi.
+   move=> ? i; congr (Frobenius_aut _ _).
+   case: insubP; last first.
+    case: i => /= i.
+    rewrite size_phi => C; by rewrite C.
+   move=> u ? ui.
+   rewrite /= castmxE; congr ((Phi x _ _)%:P * _); by apply/ord_inj.
+  rewrite modp_sum coef_sum.
+  rewrite (bigD1 j) //=.
+  subst E.
+  'X ^ (2 * i) %% phi = 'X ^ i
+  apply eq_bigr => i _.
+  rewrite /modp /edivp.
+  rewrite GRing.Frobenius_autM_comm; last by rewrite /GRing.comm GRing.mulrC.
+  rewrite GRing.Frobenius_autX !GRing.Frobenius_autE.
+  rewrite /Phi mxE /b mxE.
+
+
+
+  rewrite -/E.
+
+
+  rewrite /=.
+
+
+  set E := (Frobenius_aut char2_poly).
+  set E := (fun k =>
+    Frobenius_aut char2_poly (match insub k with
+                                                       | Some i => _
+                                                       | None => 0
+                                                       end%:P * 'X^k)).
+  apply irreducible.f2p_monic //.
+  rewrite GRing.linear_sum.
 End Main.
