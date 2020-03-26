@@ -694,4 +694,63 @@ suff: (p < p)%nat by rewrite ltnn.
 suff: (p + s < p)%nat; first by apply/leq_trans; rewrite ltnS leq_addr.
 by rewrite -Ts.
 Qed.
+
+Definition b (v : 'rV['F_2]_p) := v ord0 (Ordinal wrp).
+
+Definition Phi S : 'rV['F_2]_p :=
+  \row_i b (S *m (castmx (esym tecp, esym tecp) (castmx (tecp, tecp) B ^+ i))).
+
+Lemma linear_Phi : linear Phi.
+Proof.
+  move=> c x y.
+  apply/rowP => i.
+  rewrite !mxE mulmxDl /b !mxE big_distrr.
+  congr (_ + _)%R.
+  apply/eq_bigr => j _.
+  case: c => [][|[]]// i0.
+   have->: Ordinal i0 = 0 by apply/ord_inj.
+   by rewrite /= !mxE !GRing.mul0r.
+  have->: Ordinal i0 = 1 by apply/ord_inj.
+  by rewrite /= !mxE !GRing.mul1r.
+Qed.
+
+Canonical Phi_linearType := Linear linear_Phi.
+
+(* Lemma PhiE c i j : *)
+(*   Phi (c *: delta_mx 0 i) ord0 j = *)
+(*   (c * (b (row j (castmx (esym tecp, esym tecp) (castmx (tecp, tecp) B ^+ i))))). *)
+(* Proof. *)
+
+Definition Phi_long S : 'rV['F_2]_(2 * p) :=
+  \row_i b (S *m (castmx (esym tecp, esym tecp) (castmx (tecp, tecp) B ^+ i))).
+
+Lemma bij_Phi : bijective Phi.
+Proof.
+  Admitted.
+
+Definition decimate_ind (i : 'I_p) : 'I_(2 * p).
+apply: (@Ordinal _ (2 * i)).
+case: i => [][|i] i0.
+ by rewrite /= muln0 mul2n -addnn ltn_addr.
+rewrite /= mulnS addnC addn2.
+have: (2 * i.+1 < 2 * p)%N by rewrite ltn_mul2l i0.
+apply/leq_trans.
+by rewrite /= ltnS mulnS add2n.
+Defined.
+
+Definition decimate (x : 'rV['F_2]_(2 * p)) : 'rV['F_2]_p :=
+  \row_i x ord0 (decimate_ind i).
+
+Definition H x :=
+  castmx (erefl, size_phi)
+  (irreducible.H pm' (castmx (erefl, esym size_phi) x)).
+
+Lemma HE : H \o Phi =1 decimate \o Phi_long.
+Proof.
+  move=> x.
+  apply/rowP => j.
+  rewrite !(mxE, castmxE) /irreducible.F GRing.Frobenius_autE /=.
+  rewrite -irreducible.piXn irreducible.reprE -GRing.Frobenius_autE
+          ?(GRing.rmorph_char (polyC_rmorphism [ringType of 'F_2])) //.
+  move=> ?.
 End Main.
