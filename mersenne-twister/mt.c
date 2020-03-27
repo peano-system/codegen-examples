@@ -39,8 +39,11 @@
 #define n2_muln(a,b) ((a)*(b))
 #define n2_divn(a,b) ((a)/(b))
 #define n2_modulo(a,b) ((a)%(b))
+#define n1_succ(n) ((uint32_t)(n) + 1)
+#define n1_nat_of_bin(n) ((uint32_t)(n))
 
-#define n2_add_0(a,b) ((a)+(b))
+#define n2_modulo_0(a,b) ((a)%(b))
+#define n2_add_1(a,b) ((a)+(b))
 #define n2_sub_0(a,b) ((a)-(b))
 #define n2_mul_0(a,b) ((a)*(b))
 #define n2_div_0(a,b) ((a)/(b))
