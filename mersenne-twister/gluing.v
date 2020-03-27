@@ -25,10 +25,22 @@ Qed.
 
 Local Open Scope N_scope.
 
-Definition w := 32.
-Definition r := mt.r.
-Definition n := mt.len.
-Definition m := mt.m.
+Section gluing.
+Variable (w n r m a : N).
+Hypothesis rw : (r < w)%nat.
+Hypothesis nmn : ((n - m).+1 < n.-2)%nat.
+Hypothesis nm : (0 < n - m)%nat.
+Hypothesis r0 : (0 < r)%nat.
+Hypothesis nwr : (2 < n * w - r)%nat.
+Hypothesis pm : prime (2 ^ (n * w - r) - 1).
+
+Lemma w0 : (0 < w)%nat.
+Proof.
+  case: (nat_of_bin r) rw => // r'.
+  by apply/ltn_trans.
+Qed.
+
+Hint Resolve w0 : core.
 
 Definition N_of_word (t : w.-tuple 'F_2) :=
   foldr (fun x y => 2*y + x) 0
@@ -51,7 +63,7 @@ Proof. by []. Qed.
 
 Lemma size_word_of_N_iter p : size (word_of_N_iter w p) == w.
 Proof.
-  elim: (nat_of_bin w) p => // w IH p.
+  elim: (nat_of_bin w) p => // w' IH p.
   case: p => [p|p|].
     by rewrite /= (eqP (IH _)).
    by rewrite /= (eqP (IH _)).
@@ -66,8 +78,8 @@ Definition word_of_N (n' : N) :=
 
 Lemma word_of_N0 d (i : 'I_w) : nth d (word_of_N 0) i = 0%R.
 Proof.
-  case: i => //= i.
-  do 32!(case: i => // i).
+  case: i => //= i iw.
+  by rewrite (nth_map 0%nat) // size_iota.
 Qed.
 
 Lemma bin_of_add_nat n1 n2 :
@@ -118,14 +130,14 @@ case: x; first by rewrite word_of_N0.
 rewrite /word_of_N => p.
 rewrite -tnth_nth (tnth_nth 0%R).
 have->: tval (Tuple (size_word_of_N_iter p)) = word_of_N_iter w p by [].
-elim: (nat_of_bin w) i p => [[][]//|] w IH i p.
+elim: (nat_of_bin w) i p => [[][]//|] w' IH i p.
 case: p => [p|p|].
 + case: i => [][]//= i; rewrite ltnS => i0.
   by move: (IH (Ordinal i0) p) ->; rewrite pos_of_nat_pred_succ.
 + case: i => [][]//= i; rewrite ltnS => i0.
   by move: (IH (Ordinal i0) p) ->; rewrite pos_of_nat_pred_succ.
 + case: i => [][]//= i _.
-  elim: (iota 0 w) i => [*|? l IHl []//]; by rewrite nth_default.
+  by elim: (iota 0 w') i => [*|? l IHl []//]; rewrite nth_default.
 Qed.
 
 Hint Resolve pos_Num : core.
@@ -184,8 +196,8 @@ Proof.
   by rewrite mxE tnth_mktuple.
 Qed.
 
-Local Notation ai := (@array_incomplete w n (n - m) r erefl erefl erefl erefl erefl).
-Local Notation ia := (@incomplete_array w n (n - m) r erefl erefl erefl erefl).
+Local Notation ai := (@array_incomplete w n (n - m) r nmn nm r0 rw nwr).
+Local Notation ia := (@incomplete_array w n (n - m) r nmn nm r0 rw).
 
 Definition array_of_state (y : random_state) :=
   ia (\matrix_(i, j) nth 0%R (nth (word_of_N 0)
@@ -208,25 +220,27 @@ Proof.
   by rewrite array_incompleteK.
 Qed.
 
-Lemma pm : prime (2 ^ (n * w - r) - 1).
-Admitted.
-
-Local Notation B := (@B w n (n - m) r (rev_tuple (word_of_N a)) erefl erefl erefl erefl).
-
-(* Local Notation B := (@B w n (n - m) r (Tuple a32) erefl erefl erefl erefl). *)
-
+Local Notation B := (@B w n (n - m) r (rev_tuple (word_of_N a)) nmn nm r0 rw).
+Local Notation next_random_state := (next_random_state n m r a).
 Definition computeB :=
   array_of_state \o snd \o next_random_state \o state_of_array.
 
 Lemma size_next_random_state v :
 size (state_vector (next_random_state (state_of_array v)).2) = n.
 Proof.
-by rewrite /next_random_state size_set_nth size_tuple.
+rewrite /next_random_state size_set_nth size_tuple.
+by case: (nat_of_bin n) nm => []//[].
 Qed.
 
 Lemma index_next_random_state v :
 index (next_random_state (state_of_array v)).2 = 1.
-Proof. by []. Qed.
+Proof.
+  have: n != 1.
+   apply/eqP => n1.
+   move: n1 nmn => ->.
+   by rewrite ltn0.
+  by case: n => []//[]//.
+Qed.
 
 Lemma nth_next_random_state v i :
   nth 0 (state_vector (next_random_state (state_of_array v)).2) i.+1%N
@@ -239,31 +253,40 @@ Lemma nth_state_vector v (i : 'I_n) :
 Proof.
 rewrite nth_rev; last by rewrite 2!size_map size_enum_ord.
 rewrite (nth_map (word_of_N 0)) size_map size_tuple ; last by rewrite rev_ord_proof.
-rewrite (nth_map ord0) ?size_tuple ?rev_ord_proof //.
+have ord0n: 'I_n.
+ case: (nat_of_bin n) nmn => // *.
+ by apply ord0.
+have ord0w: 'I_w.
+ case: (nat_of_bin w) w0 => // *.
+ by apply ord0.
+rewrite (nth_map ord0n) ?size_tuple ?rev_ord_proof //.
 congr N_of_word.
 apply/eq_from_tnth => j.
 rewrite !(tnth_nth ord0) !nth_rev ?size_tuple //
-        !(nth_map ord0) ?size_tuple ?rev_ord_proof
+        !(nth_map ord0w) ?size_tuple ?rev_ord_proof
         ?(esym (enumT _), size_enum_ord, rev_ord_proof) //.
 by congr (ai _ _); apply/ord_inj; rewrite /= nth_enum_ord ?rev_ord_proof.
 Qed.
 
-Lemma testbit_N_of_word v a :
-  N.testbit (N_of_word v) [Num of val a] = (tnth v a == 1%R).
+Lemma testbit_N_of_word v a' :
+  N.testbit (N_of_word v) [Num of val a'] = (tnth v a' == 1%R).
 Proof.
 rewrite (tnth_nth 0%R) -[in RHS](N_of_wordK v) nth_word_of_N.
 by case: ifP.
 Qed.
 
-Local Lemma tns v b a (Ha : (a < w)%nat) (Hb : (b < n)%nat) :
-  N.testbit (nth 0 (state_vector (state_of_array v)) b) [Num of a]
+Local Lemma tns v b a' (Ha : (a' < w)%nat) (Hb : (b < n)%nat) :
+  N.testbit (nth 0 (state_vector (state_of_array v)) b) [Num of a']
 = (ai v (rev_ord (Ordinal Hb)) (rev_ord (Ordinal Ha)) == 1%R).
 Proof.
+  have ord0w: 'I_w.
+   case: (nat_of_bin w) w0 => // *.
+   by apply ord0.
   have H: b = val (Ordinal Hb) by [].
   rewrite [in LHS]H nth_state_vector.
-  have {H} H : a = val (Ordinal Ha) by [].
+  have {H} H : a' = val (Ordinal Ha) by [].
   rewrite [in LHS]H testbit_N_of_word (tnth_nth ord0) nth_rev ?size_tuple //
-          (nth_map ord0) ?size_tuple ?rev_ord_proof //.
+          (nth_map ord0w) ?size_tuple ?rev_ord_proof //.
   congr (_ == _); congr (ai _ _); apply/ord_inj.
   by rewrite nth_enum_ord ?rev_ord_proof.
 Qed.
@@ -276,9 +299,28 @@ Proof.
           ?(rev_ord_proof (Ordinal Hb)) // N_of_word_last.
 Qed.
 
-Lemma lower_maskT i : (i < r)%nat -> N.testbit lower_mask [Num of i] = true.
-Proof. by do 31!(case: i => // i). Qed.
+Notation upper_mask := (N.shiftl 1 r).
+Notation lower_mask := (upper_mask - 1).
+
+Lemma ltP' i p : reflect ([Num of i] < [Num of p]) (i < p)%nat.
+Proof.
+  apply/(iffP idP).
+   elim: p i => // p IH []// i.
+   rewrite ltnS -!Num_succ => {}/IH H.
+   by apply/N.add_lt_le_mono.
+  elim: p i => [[]//|p IH []// i].
+  by rewrite -!Num_succ -N.add_lt_mono_r ltnS; apply IH.
+Qed.
+
 Lemma upper_maskF i : (i < r)%nat -> N.testbit upper_mask [Num of i] = false.
+Proof.
+  move=> ir.
+  rewrite N.shiftl_spec_low // -[r]nat_of_binK.
+  by apply/ltP'.
+Qed.
+
+Lemma lower_maskT i : (i < r)%nat -> N.testbit lower_mask [Num of i] = true.
+rewrite /lower_mask.
 Proof. by do 31!(case: i => // i). Qed.
 
 Lemma testbita i :
