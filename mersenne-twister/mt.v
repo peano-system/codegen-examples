@@ -33,7 +33,7 @@ Definition next_random_state (rand : random_state) : (N * random_state) :=
   let current := nth 0 state_vec ind in
   let next_ind := N.modulo (N.succ ind) len in
   let next := nth 0 state_vec next_ind in
-  let far_ind := (ind + m) %% len in
+  let far_ind := Nat.modulo (ind + m) len in
   (* x_{k+m} in (2.1), p.5 *)
   let far := nth 0 state_vec far_ind in
   (* (x^u_k | x^l_{k+1}) in (2.1), p.5 *)
