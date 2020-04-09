@@ -410,6 +410,9 @@ Proof. by case: (2 ^ m) pm. Qed.
 Lemma predpower_gt0 : 0 < 2 ^ m - 1.
 Proof. by case: (2 ^ m - 1) pm. Qed.
 
+Lemma predpower_gt0' : 0 < (2 ^ m).-1.
+Proof. by rewrite -subn1 predpower_gt0. Qed.
+
 Lemma predpower_neq0 : 0 != 2 ^ m - 1.
 Proof. by case: (2 ^ m - 1) pm. Qed.
 
@@ -447,7 +450,7 @@ Hint Resolve (phi_is_monic phi_gt1) (phi_neq0 phi_gt1)
      phi_gt1 phi_gt2 phi_gt0
      phi_gtb predphi_neq0 predphi_gt1 predpredpower_power
      predpredpower_gt0 p_ord_prf predphi_geq1
-     predpower_gt_succpower
+     predpower_gt_succpower predpower_gt0'
      power_gt0 predpower_gt0 predpower_neq0 : core.
 
 Section Order.
@@ -512,10 +515,10 @@ Proof.
 move: minstabE => /eqP H3.
 have base: forall l, (0 < l < 2 ^ m - 1)%N -> x ^+ l * x != x.
  move/eqP: H3 => H l /andP [] Hl0 Hl; apply/negP => /eqP C.
-  move: H; rewrite /minstab.
-  case: (ex_minnP (@ex_intro _ (stab x) _ exstab)) => m ? H5 H4.
-  have/H5 : stab x l by rewrite /stab C Hl0 eqxx.
-  by rewrite leqNgt H4 Hl.
+ move: H; rewrite /minstab.
+ case: (ex_minnP (@ex_intro _ (stab x) _ exstab)) => m ? H5 H4.
+ have/H5 : stab x l by rewrite /stab C Hl0 eqxx.
+ by rewrite leqNgt H4 Hl.
 have base1:
   forall l k, (l < 2 ^ m - 1 -> 0 < k < 2 ^ m - 1 ->
   (x ^+ l * x = x ^+ k * x)%R -> k = l)%N.
@@ -767,10 +770,9 @@ Proof.
     by rewrite inE.
   rewrite card_finField_unit card_QphiI.
   case/primeP: pm => _.
-  rewrite !subn1 => H /H {H} /orP [|/eqP] //.
+  rewrite !subn1 => H {}/H /orP [|/eqP] //.
   rewrite order_eq1 => /eqP piX1.
-  move: piX2X.
-  rewrite -exprnP exprS piM expr1 /=.
+  move: piX2X; rewrite -exprnP exprS piM expr1 /=.
   set T := \pi 'X; have<-: val piX = T by [].
   by rewrite piX1 /= mul1r eqxx.
 Qed.
@@ -783,11 +785,9 @@ Qed.
 
 Lemma X2mp_eq1 : (\pi_(QphiI_fieldType_ip) ('X ^+ (2 ^ m - 1)) = \pi 1)%R.
 Proof.
-  suff/(f_equal val): (piX ^+ (2 ^ m - 1))%g = 1%g.
-   rewrite val_piX_expE /= => ->.
-   by rewrite pi1.
-  suff<-: #[piX]%g = (2 ^ m - 1)%nat by rewrite expg_order.
-  by rewrite piX_order.
+  suff/(f_equal val): (piX ^+ (2 ^ m - 1))%g = 1%g
+   by rewrite val_piX_expE /= pi1 => ->.
+  by rewrite -piX_order expg_order.
 Qed.
 
 Lemma XnE q :
