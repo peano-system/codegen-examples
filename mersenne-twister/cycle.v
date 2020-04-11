@@ -389,7 +389,7 @@ Proof.
   * rewrite -(horner_mx_X (castmx _ _)) -GRing.rmorphX
             (divp_eq 'X^q phi) GRing.rmorphD
             GRing.rmorphM /= Cayley_Hamilton GRing.mulr0 GRing.add0r.
-    move/(irreducible.cycleF_dvdP pm' H q0)/(_ (\pi 'X))/eqP : H0.
+    move/(irreducible.cycleF_dvdP' pm' H q0)/eqP : H0.
     rewrite -GRing.rmorphX /= exprnP -irreducible.XnE => /eqP ->.
     by rewrite modp_small // size_polyX size_char_poly prednK ltnW // ltnW.
   * move=> H1.
