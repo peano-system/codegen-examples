@@ -380,24 +380,25 @@ Local Open Scope quotient_scope.
 
 Lemma cycleB_dvdP :
   irreducible_poly phi ->
-  forall q, (castmx (tecp, tecp) B ^+ (2 ^ q) == castmx (tecp, tecp) B)
-        = (2 ^ (size phi).-1 - 1 %| 2 ^ q - 1)%nat.
+  forall q, (q > 0)%nat ->
+    (castmx (tecp, tecp) B ^+ q == castmx (tecp, tecp) B)
+        = (2 ^ (size phi).-1 - 1 %| q - 1)%nat.
 Proof.
-  move=> H q.
+  move=> H q q0.
   apply/eqP; case: ifP => H0.
   * rewrite -(horner_mx_X (castmx _ _)) -GRing.rmorphX
-            (divp_eq 'X^(2 ^ q) phi) GRing.rmorphD
+            (divp_eq 'X^q phi) GRing.rmorphD
             GRing.rmorphM /= Cayley_Hamilton GRing.mulr0 GRing.add0r.
-    move/(irreducible.cycleF_dvdP pm' H q)/(_ (\pi 'X)) : H0.
-    rewrite irreducible.expXpE -GRing.rmorphX => /eqP.
-    rewrite exprnP -irreducible.XnE => /eqP ->.
+    move/(irreducible.cycleF_dvdP pm' H q0)/(_ (\pi 'X))/eqP : H0.
+    rewrite -GRing.rmorphX /= exprnP -irreducible.XnE => /eqP ->.
     by rewrite modp_small // size_polyX size_char_poly prednK ltnW // ltnW.
   * move=> H1.
-    suff: (2 ^ (size phi).-1 - 1 %| 2 ^ q - 1)%N by rewrite H0.
     rewrite -(horner_mx_X (castmx _ _)) -GRing.rmorphX /= in H1.
     move/(f_equal (mx_inv_horner (castmx (tecp, tecp) B))): H1.
     rewrite !horner_mxK -!phi_mxminpoly // => H1.
-    by apply/(irreducible.cycleF_dvdP pm' H q)/irreducible.expandF/eqP.
+    suff: (2 ^ (size phi).-1 - 1 %| q - 1)%N by rewrite H0.
+    apply/(irreducible.cycleF_dvdP' pm' H q0)/eqP.
+    by rewrite -GRing.rmorphX /= exprnP -irreducible.XnE -H1.
 Qed.
 
 Lemma size_ord_enum q : size (ord_enum q) = q.
@@ -1386,31 +1387,56 @@ Proof.
      rewrite subKn in Tmpt; last first.
       apply/leq_trans/pw.
       by rewrite add1n ltnW //.
-
-     rewrite /= TT30 in Tmpt.
-      Search (_ - (_ - _)).
-      rewrite /= TT30 -!subSn // in Tmpt; last by apply/leqW.
-      rewrite -Tmpt /= TT30.
-    have q30: val q = 30.
-     rewrite /= subSn // subnn add1n in Qq.
-     by case: Qq.
+     suff: n * w - r < n * w - r by rewrite ltnn.
+     apply/(leq_ltn_trans (leq_addr t _)).
+     rewrite -Tmpt subn1.
+     apply/(leq_trans (_ : _ < n.-1 * w + (w - r))); first by rewrite ltn_add2l.
+     by rewrite addnBA // addnC -mulSn prednK.
+    have q30: val q = r.-1.
+     move/eqP: Qq.
+     rewrite /= -subn1 addnBAC // -subnBA //; last by apply/ltnW.
+     rewrite eqn_sub2l //; last by apply/(leq_trans (leq_subr _ _))/ltnW.
+     have->: 1 = r - r.-1.
+      case: (nat_of_bin r) r0 => // ? _.
+      by rewrite subSn // subnn.
+     by rewrite eq_sym eqn_sub2l => // [/eqP // |]; apply/ltnW.
     have->: Y = W.
      congr (v _ _); apply/ord_inj => //.
      rewrite /arr_ind /=.
      set Tmp := cast_ord _ _.
-     case: (splitP Tmp) => t Tmpt //.
-     by rewrite -Tmpt /= q30.
+     case: (splitP Tmp) => t Tmpt.
+      rewrite -Tmpt /= q30 N.mod_small //= addnBA // addnC
+              -mulSn subn2 prednK; last first.
+       by case: (nat_of_bin n) (n2 nmn nm) => []//[]//.
+      have rr : r = r.-1.+1 :> nat by rewrite prednK.
+      rewrite [X in _ - X + _]rr.
+      rewrite addnBAC.
+       by rewrite -subnBA // subSn // subnn.
+      by apply/leq_trans/rnw; case: (nat_of_bin r) r0.
+     rewrite /= in Tmpt.
+     rewrite N.mod_small // addnBA // addnC -mulSn subn2 prednK // in Tmpt; last
+      by case: (nat_of_bin n) (n2 nmn nm) => []//[]//.
+     suff: n * w - r < n * w - r by rewrite ltnn.
+     apply/(leq_ltn_trans (leq_addr t _)).
+     rewrite -Tmpt.
+     apply/(leq_ltn_trans (leq_subr _ _ : _ <= n.-1 * w)).
+     have nn: n = n.-1.+1 :> nat by rewrite prednK.
+     rewrite [X in (_ < X * _ - _)%nat]nn mulSn addnC -addnBA // -[X in (X < _)%nat]addn0.
+     by rewrite ltn_add2l; apply/leq_trans/pwr.
+    rewrite break_if.
     case: (W == 1)%R.
      rewrite mxE.
-     case: (splitP (R : 'I_(1 + w.-1))) => r' Rr';
+     case: (splitP (R : 'I_(1 + w.-1))) => rr' Rr';
       rewrite /= in Rr'.
-      case: r' Rr' => [][]//= ? Rr'.
+      case: rr' Rr' => [][]//= ? Rr'.
       by rewrite Rr' in Rr.
      rewrite Rr' !add1n in Rr.
      case: Rr => Rr.
+     rewrite TT30 mxE.
+     rewrite /=.
      rewrite TT30 /= mxE /= Rr Pp /=.
      case ZE: (Z == 1)%R.
-      by move/eqP: ZE => ->.
+      move/eqP: ZE => ->.
      by case: Z ZE => [][]//[]//.
     rewrite mxE TT30 /=.
     by case: Z => [][]//[]//.

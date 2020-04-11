@@ -413,6 +413,13 @@ Proof. by case: (2 ^ m - 1) pm. Qed.
 Lemma predpower_gt0' : 0 < (2 ^ m).-1.
 Proof. by rewrite -subn1 predpower_gt0. Qed.
 
+Lemma predpower_gt1 : 1 < 2 ^ m.
+Proof.
+  case: (2 ^ m) pm => // n.
+  rewrite subSS ltnS subn0.
+  by case: n.
+Qed.
+
 Lemma predpower_neq0 : 0 != 2 ^ m - 1.
 Proof. by case: (2 ^ m - 1) pm. Qed.
 
@@ -450,7 +457,7 @@ Hint Resolve (phi_is_monic phi_gt1) (phi_neq0 phi_gt1)
      phi_gt1 phi_gt2 phi_gt0
      phi_gtb predphi_neq0 predphi_gt1 predpredpower_power
      predpredpower_gt0 p_ord_prf predphi_geq1
-     predpower_gt_succpower predpower_gt0'
+     predpower_gt1 predpower_gt_succpower predpower_gt0'
      power_gt0 predpower_gt0 predpower_neq0 : core.
 
 Section Order.
@@ -868,35 +875,74 @@ apply/(iffP idP) => [/eqP H0 x|/(_ (\pi 'X))].
 Qed.
 
 Lemma cycleF_dvdP p :
-  reflect (iter p F =1 id) (2 ^ m - 1 %| 2 ^ p - 1)%nat.
+  (0 < p)%nat ->
+  reflect (forall (x : [lmodType 'F_2 of QphiI phi_gt1]), x ^+ p = x)
+          (2 ^ m - 1 %| p - 1)%nat.
 Proof.
-case/andP: irreducibleP_inverse => _ H0.
+move=> p1; case/andP: irreducibleP_inverse => _ H0.
 apply/(iffP idP).
-* case/dvdnP => q H1.
-  rewrite XnE -XnpE // in H0.
-  apply/expandF.
-  rewrite exprnP XnE -XnpE; last first.
-   elim: p {H1} => // n IH.
-   apply/(leq_trans IH).
-   by rewrite -[(2 ^ n)%nat]mul1n expnS leq_mul2r orbT.
-  by rewrite -subn1 H1 mulnC -exprnP exprM piXn !subn1 /= (eqP H0) pi1 expr1n.
+* case/dvdnP => q H1 x.
+  move/expandF/(_ x) : H0 => H0.
+  case q0: (q == 0)%nat.
+   move/eqP: q0 H1 => ->.
+   by case: p p1 => []//[]//.
+  case x0: (x == 0).
+   move/eqP: x0 ->.
+   by rewrite expr0n; case: p p1 H1.
+  suff/(f_equal (fun y => x * y)): x ^+ (p - 1) = 1
+   by rewrite -exprS mulr1 subn1 prednK.
+  rewrite H1 mulnC mulnBl mul1n (expfB (x : QphiI_fieldType phi_gt1 ip))
+          ?ltn_Pmull ?lt0n ?q0 //.
+  rewrite expXpE in H0.
+  by rewrite exprM H0 divff // expf_neq0 // x0.
 * move/(_ (\pi 'X)).
   rewrite XnE in H0.
-  rewrite expXpE -piXn /= -(eqP H0) -!val_piX_expE => /val_inj/eqP.
+  rewrite -(eqP H0) -rmorphX -exprM -!exprnP /= -!val_piX_expE => /val_inj/eqP.
   rewrite cyclic.eq_expg_mod_order piX_order.
   have H2: (2 ^ (size phi).-1 = ((2 ^ (size phi).-1) - 1) + 1)%nat
    by rewrite addn1 subn1 prednK.
-  have H3: (1 = 0 + 1)%nat by rewrite add0n.
   case p0: (p > 0)%nat; last first.
    rewrite lt0n in p0.
    by move/negP/negP/eqP: p0 ->.
-  have H4: ((2 ^ p) = ((2 ^ p) - 1) + 1)%nat.
-   rewrite subn1 addn1 prednK //.
-   elim: p p0 => // [][] // p IH _.
-   have->: (0 = 2 * 0)%nat by [].
-   by rewrite expnS ltn_mul2l /= muln0 IH.
-  by rewrite [X in (_ == X %[mod _])%nat]H2 modnDl [X in (_ == X %[mod _])%nat]H3
-             [X in (X == _ %[mod _])%nat]H4 eqn_modDr mod0n.
+  have H3: (p - 1 + 1 = p)%nat by rewrite subn1 addn1 prednK.
+  by rewrite [X in (_ == X %[mod _])%nat]H2 modnDl
+            -[X in (_ == X %[mod _])%nat]add0n
+             [X in (X * _ == _ %[mod _])%nat]H2 mulnDl mulnC modnMDl mul1n -H3
+             eqn_modDr H3 mod0n.
+Qed.
+
+Lemma cycleF_dvdP' p :
+  (0 < p)%nat ->
+  reflect ((\pi 'X : QphiI phi_gt1) ^+ p = \pi 'X)
+          (2 ^ m - 1 %| p - 1)%nat.
+Proof.
+move=> p1; case/andP: irreducibleP_inverse => _ H0.
+apply/(iffP idP).
+* case/dvdnP => q H1.
+  move/expandF/(_ (\pi 'X)) : H0 => H0.
+  case q0: (q == 0)%nat.
+   move/eqP: q0 H1 => ->.
+   by case: p p1 => []//[]//.
+  suff/(f_equal (fun y => (\pi 'X : QphiI phi_gt1) * y)):
+     (\pi 'X : QphiI phi_gt1) ^+ (p - 1) = 1
+   by rewrite -exprS mulr1 subn1 prednK.
+  rewrite H1 mulnC mulnBl mul1n (expfB (\pi 'X : QphiI_fieldType phi_gt1 ip))
+          ?ltn_Pmull ?lt0n ?q0 //.
+  rewrite expXpE in H0.
+  by rewrite exprM H0 divff // expf_neq0 // x0.
+* rewrite XnE in H0.
+  rewrite -(eqP H0) -rmorphX -exprM -!exprnP /= -!val_piX_expE => /val_inj/eqP.
+  rewrite cyclic.eq_expg_mod_order piX_order.
+  have H2: (2 ^ (size phi).-1 = ((2 ^ (size phi).-1) - 1) + 1)%nat
+   by rewrite addn1 subn1 prednK.
+  case p0: (p > 0)%nat; last first.
+   rewrite lt0n in p0.
+   by move/negP/negP/eqP: p0 ->.
+  have H3: (p - 1 + 1 = p)%nat by rewrite subn1 addn1 prednK.
+  by rewrite [X in (_ == X %[mod _])%nat]H2 modnDl
+            -[X in (_ == X %[mod _])%nat]add0n
+             [X in (X * _ == _ %[mod _])%nat]H2 mulnDl mulnC modnMDl mul1n -H3
+             eqn_modDr H3 mod0n.
 Qed.
 End Inverse.
 
